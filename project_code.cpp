@@ -13,6 +13,7 @@ using namespace __gnu_pbds;
 typedef long long ll;
 typedef long double ld;
 typedef vector<int> vi;
+typedef set<int> si;
 typedef vector<ll> vl;
 typedef vector<vector<int>> vii;
 typedef vector<pair<int, int>> vpii;
@@ -30,6 +31,8 @@ typedef map<int , vi> mivi;
 #define all(x)  x.begin(),x.end()
 #define google(x) cout << "Case #" << x << ": ";
 #define mp make_pair
+#define F first
+#define S second
 #define pb push_back
 #define pob pop_back
 #define pf push_front
@@ -74,8 +77,6 @@ template<class T , class R > ostream& operator<<(ostream &os, pair<T , R> V){
     #define checktime();
 #endif
 
-int i, j, k;
-
 int total_node, total_relay, total_sink, r_jam, r_relay; 
 
 struct node {
@@ -87,10 +88,23 @@ struct node {
     }
 };
 
+void show(deque<int> que) {
+    int a = que.size();
+    cout << '{';
+    while(a--) {
+        int fro = que.front(); que.pop_front(); que.push_back(fro);
+        cout << fro << ',';
+    }
+    cout << '}';
+    cout << "\n";
+}
+
 vector<node> Nodes; vector<pii> position; 
 vector<node> Relay; vector<node> Sink; struct node Base; 
 // 0 -> in, 1-> out
 vector<vi> adjacent_list; vector<vpii> disjoint_adjacent_list[2]; 
+
+/*********************************** Defined Varibales *************************************/
 
 void paramter_input() {
     cin >> total_node >> total_relay >> total_sink >> r_jam >> r_relay;
@@ -115,6 +129,8 @@ void input() {
     }
 
 }
+
+/*********************************** Take Input Code *************************************/
 
 int distance(int i, int j) {
     return (pow(position[i].first - position[j].first, 2) + pow(position[i].second - position[j].second, 2));
@@ -147,10 +163,10 @@ void build_graph() {
 
     }
 
-    // trace(adjacent_list);
-    // trace(disjoint_adjacent_list[0]);
-    // trace(disjoint_adjacent_list[1]);
+    // trace(adjacent_list); trace(disjoint_adjacent_list[0]); trace(disjoint_adjacent_list[1]);
 }
+
+/*********************************** Build Graph and supporting funtions *************************************/
 
 bool consist(set<int> &s, int i) {
     if(s.find(i) != s.end()) return true;
@@ -297,6 +313,174 @@ pair<vi, vi> findNodeDisjointPaths(set<int> start, int end) {
 
 }
 
+int minDistanceFrom(set<int> &p1, set<int> &p2, int i) {
+
+    int r1 = 1e9; int r2 = 1e9;
+    if(p1.find(i) != p1.end() || p2.find(i) != p2.end() || i == 0 || i > total_relay) return 0; 
+
+    for(auto p : p1) r1 = min(r1, distance(p, i));
+    for(auto p : p2) r2 = min(r2, distance(p, i));
+
+    if(r1 < r2) return 1; 
+    else return 2; 
+
+} 
+
+/*********************************** Find node disjoint path and supporting funtion *************************************/
+
+pair<set<int>, set<int>> divideInTwoSets(vi &p1, vi &p2, set<int> &discarded) {
+    set<int> s1, s2; 
+    for(int i=1;i<p1.size();i++) {
+        if(p1[i] != 0 && p1[i] <= total_relay && discarded.find(p1[i]) == discarded.end()) s1.insert(p1[i]);
+    }
+    for(int i=1;i<p2.size();i++) {
+        if(p2[i] != 0 && p2[i] <= total_relay && discarded.find(p2[i]) == discarded.end()) s2.insert(p2[i]);
+    }
+
+    set<int> S1, S2; 
+
+    for(int i=0;i<total_node;i++) {
+        if(discarded.find(i) != discarded.end()) continue;
+        int a = minDistanceFrom(s1, s2, i);
+        if(a == 0) continue; 
+        else if(a == 1) S1.insert(i);
+        else S2.insert(i);
+    }
+
+    return {S1, S2};
+}
+
+bool validRelayPair(int i, int j) {
+    if(min(i, j) != 0 && max(i, j) <= total_relay) return true; 
+    return false; 
+}
+
+vi findBadPairs(vi &p1, vi &p2, set<int> &discarded) {
+    vi countCriticalPair(total_relay + 1, 0); 
+    for(int i=0;i<p1.size();i++) {
+        for(int j=0; j<p2.size();j++) {
+            if(discarded.find(p1[i]) != discarded.end() || discarded.find(p2[j]) != discarded.end()) continue; 
+            if(validRelayPair(p1[i], p2[j]) && connection(p1[i], p2[j], 2*r_jam)) {
+                // trace(p1[i], p2[j]);
+                countCriticalPair[p1[i]]++; countCriticalPair[p2[j]]++;
+            }
+        }
+    }
+    return countCriticalPair;
+}
+
+vi belongsTo(vi &p1, vi &p2) {
+    vi partOf(total_node + 1, 0);
+    for(auto p : p1) if(validRelayPair(p, p)) partOf[p] = 1; 
+    for(auto p : p2) if(validRelayPair(p, p)) partOf[p] = 2; 
+    return partOf;
+}
+
+pair<bool, vi>  buildAnotherPath(vi &p, si &s, vi &countCriticalPair, si &discarded, int node) {
+    // trace(p, s, node, countCriticalPair);
+    int index = 0;
+    for(int i=0;i<p.size();i++) {
+        if(p[i] == node) { index = i; break; }
+    }
+    // trace(index);
+    int l = index; int r = index;
+    while(l > 0 && countCriticalPair[p[l]] != 0) l--;
+    while(r < p.size()-1 && countCriticalPair[p[r]] != 0) r++; 
+    // trace(l, r);
+    // do BFS
+    set<int> finalDestination; vi dis(total_node+1, 2e5);
+    for(int i=r;i<p.size();i++) finalDestination.insert(p[i]);
+    trace(finalDestination);
+    deque<int> que; 
+    for(int i=0;i<=l;i++) if(discarded.find(p[i]) == discarded.end()) que.push_back(p[i]), dis[p[i]] = 0;
+    // show(que);
+    while(!que.empty()) {
+        int fro = que.front(); que.pop_front();
+        if(finalDestination.find(fro) != finalDestination.end()) { que.push_back(fro); break; }
+
+        for(auto k : adjacent_list[fro]) {
+            if(finalDestination.find(k) != finalDestination.end()) {
+                dis[k] = dis[fro] + 1; 
+                que.push_back(k);
+            }
+            if(s.find(k) == s.end() || dis[k] != 2e5) continue; 
+            dis[k] = dis[fro] + 1; 
+            que.push_back(k);
+        }
+        // show(que);
+    }
+    // show(que);
+    if(que.size() == 0) { return {false, p}; } //no new path found
+    else {
+        vector<int> rev_path; rev_path.push_back(que.back());
+        while(dis[rev_path.back()] != 0) {
+            for(auto k : adjacent_list[rev_path.back()]) {
+                if(dis[k] == dis[rev_path.back()] - 1) { rev_path.pb(k); break; }
+            }
+        }
+        // trace(rev_path);
+        vi final_path;
+        for(int i=0;;i++) {
+            if(p[i] == rev_path.back()) break;
+            else final_path.push_back(p[i]); 
+        }
+        reverse(all(rev_path));
+        for(auto k : rev_path) final_path.push_back(k);
+        for(int i=1;i<p.size();i++) {
+            if(final_path.back() == p[i-1]) final_path.push_back(p[i]);
+        }
+        // trace(final_path);
+        return {true, final_path};
+    }
+
+}
+
+pair<vi, vi> findRegionDisjointPaths(set<int> start, int end) {
+
+    pair<vi, vi> paths = findNodeDisjointPaths(start, end);
+    set<int> discarded;
+
+    bool region_disjoint_exist = true; 
+    while(true) {
+        vi countCriticalPair = findBadPairs(paths.F, paths.S, discarded); 
+        vi partOf = belongsTo(paths.F, paths.S);
+        set<pii> to_remove; 
+        for(int i=1;i<=total_relay;i++) {
+            if(countCriticalPair[i] != 0) to_remove.insert({-1*countCriticalPair[i], i});
+        }
+
+        pair<si, si> two_sets = divideInTwoSets(paths.F, paths.S, discarded);
+        //******************check section *******************************
+        trace(paths);
+        trace(countCriticalPair);
+        trace(to_remove);
+        trace(two_sets);
+        //***************************************************************
+
+        if(to_remove.size() == 0) break;
+
+        bool some_changes = false; 
+        for(auto p : to_remove) {
+            if(partOf[p.second] == 1) {
+                pair<bool, vi> another_path = buildAnotherPath(paths.F, two_sets.F, countCriticalPair, discarded, p.second);
+                if(!another_path.F) continue; 
+                paths.F = another_path.S; discarded.insert(p.second); 
+                some_changes = true; break;
+            } 
+            else if(partOf[p.second] == 2) {
+                pair<bool, vi> another_path = buildAnotherPath(paths.S, two_sets.S, countCriticalPair, discarded, p.second);
+                if(!another_path.F) continue;
+                paths.S = another_path.S; discarded.insert(p.second);
+                some_changes = true; break;
+            }
+        }
+        if(!some_changes) { region_disjoint_exist = false; break; }
+    }
+    // trace(region_disjoint_exist);
+    if(region_disjoint_exist) return paths; 
+    return {{}, {}};
+}
+
 int main() {
     
     // input -> total_node, total_relay, total_sink, r_jam, r_relay
@@ -307,14 +491,26 @@ int main() {
     paramter_input();
     input();
     build_graph();
-    pair<vi, vi> paths = findNodeDisjointPaths({0}, 9);
+    // pair<vi, vi> paths = findNodeDisjointPaths({0}, total_relay+1);
+    // pair<si, si> two_sets = divideInTwoSets(paths.F, paths.S);
+
+    // trace(paths.F, paths.S);
+    // set<int> d; 
+    // trace(findBadPairs(paths.F, paths.S, d));
+    // trace(divideInTwoSets(paths.F, paths.S, d));
+    // trace(two_sets.F, two_sets.S);
+
+    pair<vi, vi> paths_final = findRegionDisjointPaths({0}, total_relay+1);
+    trace(paths_final);
+
+    return 0;
 
 }
 
 
 /*
 
-10 9 1 4 4
+10 8 1 4 4
 0 0 
 1 1
 4 0
@@ -327,7 +523,7 @@ int main() {
 8 0
 
 TC - 2
-10 9 1 2 4
+9 7 1 2 4
 0 0 
 1 1
 3 1
@@ -337,6 +533,33 @@ TC - 2
 1 -3
 5 -3
 8 0
+
+TC-3  (current)
+
+23 21 1 2 4
+0 0 
+1 1
+3 1
+4 4
+8 4
+6 0
+1 -3
+8 0
+5 -4
+-2 -6
+1 8
+3 10
+5 -16
+4 -3
+10 -10
+10 10
+9 7
+7 -2
+2 -5
+1 3
+2 5
+4 7
+5 6
 
 
 */
