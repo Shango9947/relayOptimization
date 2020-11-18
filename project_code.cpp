@@ -481,6 +481,37 @@ pair<vi, vi> findRegionDisjointPaths(set<int> start, int end) {
     return {{}, {}};
 }
 
+int findTheNearestSink(set<int> start) {
+    vector<bool> visited(total_node + 1, false);
+
+    deque<int> que; 
+    for(auto p : start) que.push_back(p), visited[p] = true;
+
+    while(!que.empty()) {
+        int fro = que.front(); que.pop_front();
+        for(auto p : adjacent_list[fro]) {
+            if(visited[p] == true) continue; 
+            que.push_back(p); visited[p] = true;
+            if(Nodes[p].type == 2) return p;
+        }
+    }
+
+    return -1;
+}
+
+set<int> buildMultiplePath (set<int> start) {
+    while(true) {
+        int end = findTheNearestSink(start);
+        if(end == -1) break;
+        pair<vi, vi> path_found = findRegionDisjointPaths(start, end);
+        for(auto p : path_found.first) start.insert(p);
+        for(auto p : path_found.second) start.insert(p);
+        trace(start);
+    }
+
+    return start; 
+}
+
 int main() {
     
     // input -> total_node, total_relay, total_sink, r_jam, r_relay
@@ -502,6 +533,9 @@ int main() {
 
     pair<vi, vi> paths_final = findRegionDisjointPaths({0}, total_relay+1);
     trace(paths_final);
+
+    set<int> final_set = buildMultiplePath({0});
+    trace(final_set);
 
     return 0;
 
