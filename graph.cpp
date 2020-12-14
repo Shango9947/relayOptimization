@@ -79,10 +79,10 @@ template<class T , class R > ostream& operator<<(ostream &os, pair<T , R> V){
 
 int i, j, k;
 
-int total_node, total_relay, total_sink, r_jam, r_relay; 
+int total_node, total_relay, total_sink; double  r_jam, r_relay, safe_radius; 
 
 struct node {
-    int index, type, x, y;
+    int index, type; double x, y;
     // type = {0, 1, 2} = {base, relay, sink}
 
     bool operator < (node p) {
@@ -91,10 +91,10 @@ struct node {
 };
 
 struct Edge {
-    int x1, x2, y1, y2; 
+    double x1, x2, y1, y2; 
 };
 
-vector<node> Nodes; vector<pii> position; 
+vector<node> Nodes; vector<pdd> position; 
 vector<node> Relay; vector<node> Sink; struct node Base; 
 // 0 -> in, 1-> out
 vector<vi> adjacent_list; vector<vpii> disjoint_adjacent_list[2]; 
@@ -102,15 +102,15 @@ vector<vi> adjacent_list; vector<vpii> disjoint_adjacent_list[2];
 /*********************************** Defined Varibales *************************************/
 
 void paramter_input() {
-    cin >> total_node >> total_relay >> total_sink >> r_jam >> r_relay;
-    // trace(total_node, total_relay, total_sink, r_jam, r_relay);
+    cin >> total_node >> total_relay >> total_sink >> r_jam >> r_relay >> safe_radius;
+    // trace(total_node, total_relay, total_sink, r_jam, r_relay, safe_radius);
 }
 
 void input() {
     Nodes.resize(total_node); position.resize(total_node); adjacent_list.resize(total_node);
 
     for(int i=0;i<total_node;i++) {
-        int x, y; cin >> x >> y;
+        double x, y; cin >> x >> y;
 
         int type = 0;
         if(i > 0 && i <= total_relay) type = 1; 
@@ -122,17 +122,24 @@ void input() {
         else if(type == 1) Relay.push_back({i, type, x, y});
         else Sink.push_back({i, type, x, y});
     }
-
 }
 
 /*********************************** Take Input Code *************************************/
 
-int distance(int i, int j) {
-    return (pow(position[i].first - position[j].first, 2) + pow(position[i].second - position[j].second, 2));
+double distance(int i, int j) {
+    return sqrt((pow(position[i].first - position[j].first, 2) + pow(position[i].second - position[j].second, 2)));
 }
 
-bool connection(int i, int j, int r) {
-    if(distance(i, j) <= r*r) return true;
+double distance(int i, pdd p2) {
+    return sqrt((pow(position[i].first - p2.first, 2) + pow(position[i].second - p2.second, 2)));
+}
+
+double distance(pdd p1, pdd p2) {
+    return sqrt((pow(p1.first - p2.first, 2) + pow(p2.second - p1.second, 2)));
+}
+
+bool connection(int i, int j, double r) {
+    if(distance(i, j) <= r) return true;
     return false; 
 }
 
